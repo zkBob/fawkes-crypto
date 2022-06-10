@@ -36,7 +36,6 @@ version = "0.3.4"
 package = "fawkes-crypto-bellman_ce"
 git = "ssh://git@github.com/zkBob/phase2-bn254.git"
 branch = "multicore-wasm"
-features = ["multicore"]
 optional = true
 
 [features]
@@ -49,4 +48,5 @@ borsh_support = ["borsh", "ff-uint/borsh_support"]
 serde_support = ["serde", "ff-uint/serde_support"]
 rand_support = ["rand", "getrandom", "ff-uint/rand_support"]
 wasm = ["getrandom/js", "bellman/wasm"]
+multicore = ["bellman/multicore"]
 
