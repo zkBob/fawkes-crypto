@@ -1,7 +1,7 @@
 use crate::{
     core::sizedvec::SizedVec,
     ff_uint::seedbox::{SeedboxChaCha20, SeedBox, SeedBoxGen},
-    ff_uint::{Num, PrimeField},
+    ff_uint::{Num, PrimeField}, constants::PREALLOC_SIZE,
 };
 
 #[cfg(feature = "serde_support")]
@@ -59,13 +59,24 @@ fn sigma<Fr: PrimeField>(a: Num<Fr>) -> Num<Fr> {
 
 fn mix<Fr: PrimeField>(state: &mut [Num<Fr>], params: &PoseidonParams<Fr>) {
     let statelen = state.len();
-    let mut new_state = vec![Num::ZERO; statelen];
+
+    let mut arr: [Num<Fr>; PREALLOC_SIZE] = [Num::ZERO; PREALLOC_SIZE];
+    let mut vec: Vec<Num<Fr>> = Vec::new();
+    let new_state = match statelen {
+        size if size <= PREALLOC_SIZE => &mut arr[..size],
+        size => {
+            vec.resize(size, Num::ZERO);
+            &mut vec[..]
+        }
+    };
+    
     for i in 0..statelen {
         for j in 0..statelen {
             new_state[i] += params.m[i][j] * state[j];
         }
     }
-    state.clone_from_slice(&new_state);
+
+    (0..statelen).for_each(|i| state[i] = new_state[i]);
 }
 
 fn perm<Fr: PrimeField>(state: &mut [Num<Fr>], params: &PoseidonParams<Fr>) {
@@ -86,16 +97,26 @@ fn perm<Fr: PrimeField>(state: &mut [Num<Fr>], params: &PoseidonParams<Fr>) {
 }
 
 pub fn poseidon<Fr: PrimeField>(inputs: &[Num<Fr>], params: &PoseidonParams<Fr>) -> Num<Fr> {
-    let mut state = vec![Num::ZERO; params.t];
+    let mut arr: [Num<Fr>; PREALLOC_SIZE] = [Num::ZERO; PREALLOC_SIZE];
+    let mut vec: Vec<Num<Fr>> = Vec::new();
+    let state = match params.t {
+        size if size <= PREALLOC_SIZE => &mut arr[..size],
+        size => {
+            vec.resize(size, Num::ZERO);
+            &mut vec[..]
+        }
+    };
+    
     let n_inputs = inputs.len();
     assert!(
         n_inputs < params.t,
         "number of inputs should be less or equal than t"
     );
     assert!(n_inputs > 0, "number of inputs should be positive nonzero");
-    (&mut state[0..n_inputs]).clone_from_slice(inputs);
+    
+    (0..n_inputs).for_each(|i| state[i] = inputs[i]);
 
-    perm(&mut state, params);
+    perm(&mut state[..], params);
     state[0]
 }
 
