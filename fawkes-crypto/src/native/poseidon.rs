@@ -60,6 +60,7 @@ fn sigma<Fr: PrimeField>(a: Num<Fr>) -> Num<Fr> {
 fn mix<Fr: PrimeField>(state: &mut [Num<Fr>], params: &PoseidonParams<Fr>) {
     let statelen = state.len();
 
+    // Don't allocate memory in heap if statelen is less or equal to PREALLOC_SIZE
     let mut arr: [Num<Fr>; PREALLOC_SIZE] = [Num::ZERO; PREALLOC_SIZE];
     let mut vec: Vec<Num<Fr>> = Vec::new();
     let new_state = match statelen {
@@ -97,6 +98,14 @@ fn perm<Fr: PrimeField>(state: &mut [Num<Fr>], params: &PoseidonParams<Fr>) {
 }
 
 pub fn poseidon<Fr: PrimeField>(inputs: &[Num<Fr>], params: &PoseidonParams<Fr>) -> Num<Fr> {
+    let n_inputs = inputs.len();
+    assert!(
+        n_inputs < params.t,
+        "number of inputs should be less or equal than t"
+    );
+    assert!(n_inputs > 0, "number of inputs should be positive nonzero");
+
+    // Don't allocate memory in heap if statelen is less or equal to PREALLOC_SIZE
     let mut arr: [Num<Fr>; PREALLOC_SIZE] = [Num::ZERO; PREALLOC_SIZE];
     let mut vec: Vec<Num<Fr>> = Vec::new();
     let state = match params.t {
@@ -106,13 +115,6 @@ pub fn poseidon<Fr: PrimeField>(inputs: &[Num<Fr>], params: &PoseidonParams<Fr>)
             &mut vec[..]
         }
     };
-    
-    let n_inputs = inputs.len();
-    assert!(
-        n_inputs < params.t,
-        "number of inputs should be less or equal than t"
-    );
-    assert!(n_inputs > 0, "number of inputs should be positive nonzero");
     
     (0..n_inputs).for_each(|i| state[i] = inputs[i]);
 
