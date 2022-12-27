@@ -314,7 +314,7 @@ dependencies = [
 [[package]]
 name = "fawkes-crypto-bellman_ce"
 version = "0.3.5"
-source = "git+ssh://git@github.com/zkBob/phase2-bn254.git?branch=multicore-wasm#23fc4b6fd729e57785483d8dbebaeee712389803"
+source = "git+https://github.com/zkBob/phase2-bn254?branch=multicore-wasm#f484dbe81e1fd5707de4168a928c5a51e0389add"
 dependencies = [
  "bit-vec",
  "byteorder",
@@ -332,7 +332,7 @@ dependencies = [
 [[package]]
 name = "fawkes-crypto-pairing_ce"
 version = "0.18.1"
-source = "git+ssh://git@github.com/zkBob/phase2-bn254.git?branch=multicore-wasm#23fc4b6fd729e57785483d8dbebaeee712389803"
+source = "git+https://github.com/zkBob/phase2-bn254?branch=multicore-wasm#f484dbe81e1fd5707de4168a928c5a51e0389add"
 dependencies = [
  "byteorder",
  "ff_ce",

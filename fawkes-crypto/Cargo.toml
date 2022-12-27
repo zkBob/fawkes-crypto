@@ -34,7 +34,7 @@ package = "blake2-rfc_bellman_edition"
 [dependencies.bellman]
 version = "0.3.4"
 package = "fawkes-crypto-bellman_ce"
-git = "ssh://git@github.com/zkBob/phase2-bn254.git"
+git = "https://github.com/zkBob/phase2-bn254"
 branch = "multicore-wasm"
 optional = true
 
