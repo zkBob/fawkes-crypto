@@ -23,6 +23,10 @@ impl<T, const L: usize> SizedVec<T, L> {
         &self.0
     }
 
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
+        &mut self.0
+    }
+
     pub fn iter(&self) -> Iter<'_, T> {
         self.0.iter()
     }
