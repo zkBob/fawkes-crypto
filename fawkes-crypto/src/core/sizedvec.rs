@@ -7,6 +7,8 @@ use std::{
 };
 
 
+use serde::de::Error;
+
 #[cfg(feature = "borsh_support")]
 use crate::borsh::{BorshSerialize, BorshDeserialize};
 
@@ -19,6 +21,10 @@ pub struct SizedVec<T: Sized, const L: usize>([T; L]);
 impl<T, const L: usize> SizedVec<T, L> {
     pub fn as_slice(&self) -> &[T] {
         &self.0
+    }
+
+    pub fn as_mut_slice(&mut self) -> &mut [T] {
+        &mut self.0
     }
 
     pub fn iter(&self) -> Iter<'_, T> {
@@ -40,7 +46,12 @@ impl<T: Serialize, const L: usize> Serialize for SizedVec<T, L> {
 #[cfg(feature = "serde_support")]
 impl<'de, T: Deserialize<'de>, const L: usize> Deserialize<'de> for SizedVec<T, L> {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<SizedVec<T, L>, D::Error> {
-        Vec::<T>::deserialize(deserializer).map(|v| SizedVec::<T, L>::from_iter(v))
+        let v = Vec::<T>::deserialize(deserializer)?;
+        if v.len() != L {
+            Err(Error::invalid_length(v.len(), &L.to_string().as_str()))
+        } else {
+            Ok(SizedVec::<T, L>::from_iter(v))
+        }
     }
 }
 
