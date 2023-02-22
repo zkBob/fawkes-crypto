@@ -1,5 +1,5 @@
 
-use fawkes_crypto::{
+use fawkes_crypto_zkbob::{
     circuit::{cs::{DebugCS, CS}, poseidon::*, num::CNum},
     core::{signal::Signal, sizedvec::SizedVec},
     engines::bn256::Fr,
