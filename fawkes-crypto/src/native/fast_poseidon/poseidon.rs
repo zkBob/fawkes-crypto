@@ -26,7 +26,6 @@ pub fn poseidon<Fr: PrimeField>(inputs: &[Num<Fr>], params: &PoseidonParams<Fr>)
     (0..n_inputs).for_each(|i| state[i] = inputs[i]);
 
     perm(state, params);
-    println!("{:?}", state);
     state[0]
 }
 

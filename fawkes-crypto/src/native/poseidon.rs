@@ -31,8 +31,8 @@ impl<Fr: PrimeField> PoseidonParams<Fr> {
     pub fn new_with_salt(t: usize, f: usize, p: usize, salt:&str) -> Self {
 
         fn m<Fr: PrimeField>(n: usize, seedbox: &mut SeedboxChaCha20) -> Vec<Vec<Num<Fr>>> {
-            let x = (0..n).map(|_| seedbox.gen()).collect::<Vec<_>>();
-            let y = (0..n).map(|_| seedbox.gen()).collect::<Vec<_>>();
+            let x = (0..n).map(|i| Num::from(i as u64)).collect::<Vec<Num<Fr>>>();
+            let y = (n..2*n).map(|i| Num::from(i as u64)).collect::<Vec<Num<Fr>>>();
             (0..n).map(|i| (0..n).map(|j| Num::ONE/(x[i] + y[j]) ).collect()).collect()
         }
 
@@ -43,7 +43,6 @@ impl<Fr: PrimeField> PoseidonParams<Fr> {
         let c = (0..f + p)
             .map(|_| (0..t).map(|_| seedbox.gen()).collect())
             .collect();
-        println!("{:?}", c);
         let m = m(t, &mut seedbox);
         PoseidonParams { c, m, t, f, p }
     }

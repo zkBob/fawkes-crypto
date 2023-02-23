@@ -1,6 +1,6 @@
 use ff_uint::{PrimeField, seedbox::{SeedboxChaCha20, SeedBoxGen, SeedBox}, Num};
 
-use crate::native::fast_poseidon::{mds::{derive_mds_matrices, factor_to_sparse_matrixes}, preprocessing::compress_round_constants};
+use crate::native::fast_poseidon::{mds::{derive_mds_matrices, factor_to_sparse_matrixes}, preprocessing::compress_round_constants, matrix::{transpose, is_invertible}};
 #[cfg(feature = "serde_support")]
 use crate::serde::{Deserialize, Serialize};
 
@@ -31,8 +31,9 @@ impl<Fr: PrimeField> PoseidonParams<Fr> {
     pub fn new_with_salt(t: usize, f: usize, p: usize, salt:&str) -> Self {
 
         fn m<Fr: PrimeField>(n: usize, seedbox: &mut SeedboxChaCha20) -> Vec<Vec<Num<Fr>>> {
-            let x = (0..n).map(|_| seedbox.gen()).collect::<Vec<_>>();
-            let y = (0..n).map(|_| seedbox.gen()).collect::<Vec<_>>();
+            // TODO: I modified this part to make matrix simmetric
+            let x = (0..n).map(|i| Num::from(i as u64)).collect::<Vec<Num<Fr>>>();
+            let y = (n..2*n).map(|i| Num::from(i as u64)).collect::<Vec<Num<Fr>>>();
             (0..n).map(|i| (0..n).map(|j| Num::ONE/(x[i] + y[j]) ).collect()).collect()
         }
 
@@ -44,8 +45,14 @@ impl<Fr: PrimeField> PoseidonParams<Fr> {
             .map(|_| (0..t).map(|_| seedbox.gen()).collect::<Vec<Num<Fr>>>())
             .flatten() // TODO: check it
             .collect();
-        println!("{:?}", round_constants);
-        let mds = m(t, &mut seedbox);
+        let mds: Vec<Vec<Num<Fr>>> = m(t, &mut seedbox);
+
+        // To ensure correctness, we would check all sub-matrices for invertibility. Meanwhile, this is a simple sanity check.
+        assert!(is_invertible(&mds));
+
+        //  `poseidon::product_mds_with_matrix` relies on the constructed MDS matrix being symmetric, so ensure it is.
+        assert_eq!(mds, transpose(&mds));
+        
         let mds_matrices = derive_mds_matrices(mds);
 
         let compressed_round_constants = compress_round_constants(
