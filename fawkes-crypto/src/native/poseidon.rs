@@ -43,6 +43,7 @@ impl<Fr: PrimeField> PoseidonParams<Fr> {
         let c = (0..f + p)
             .map(|_| (0..t).map(|_| seedbox.gen()).collect())
             .collect();
+        println!("{:?}", c);
         let m = m(t, &mut seedbox);
         PoseidonParams { c, m, t, f, p }
     }
