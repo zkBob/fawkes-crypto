@@ -39,7 +39,10 @@ fn scalar_vec_mul<Fr: PrimeField>(scalar: Num<Fr>, vec: &[Num<Fr>]) -> Vec<Num<F
         .collect::<Vec<_>>()
 }
 
-pub fn mat_mul<Fr: PrimeField>(a: &Matrix<Num<Fr>>, b: &Matrix<Num<Fr>>) -> Option<Matrix<Num<Fr>>> {
+pub fn mat_mul<Fr: PrimeField>(
+    a: &Matrix<Num<Fr>>,
+    b: &Matrix<Num<Fr>>,
+) -> Option<Matrix<Num<Fr>>> {
     if rows(a) != columns(b) {
         return None;
     };

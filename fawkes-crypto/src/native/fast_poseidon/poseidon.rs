@@ -1,9 +1,8 @@
-use ff_uint::{PrimeField, Num};
+use ff_uint::{Num, PrimeField};
 
-use crate::{constants::PREALLOC_SIZE};
+use crate::constants::PREALLOC_SIZE;
 
 use super::params::PoseidonParams;
-
 
 fn ark<Fr: PrimeField>(state: &mut [Num<Fr>], c: &[Num<Fr>]) {
     state.iter_mut().zip(c.iter()).for_each(|(s, c)| *s += c)
@@ -27,7 +26,7 @@ fn mix<Fr: PrimeField>(state: &mut [Num<Fr>], params: &PoseidonParams<Fr>) {
             &mut vec[..]
         }
     };
-    
+
     for i in 0..statelen {
         for j in 0..statelen {
             new_state[i] += params.mds_matrices.m[i][j] * state[j];
@@ -50,7 +49,7 @@ fn mix_m_i<Fr: PrimeField>(state: &mut [Num<Fr>], params: &PoseidonParams<Fr>) {
             &mut vec[..]
         }
     };
-    
+
     for i in 0..statelen {
         for j in 0..statelen {
             new_state[i] += params.mds_matrices.m_i[j][i] * state[j];
@@ -66,14 +65,21 @@ fn cheap_mix<Fr: PrimeField>(state: &mut [Num<Fr>], params: &PoseidonParams<Fr>,
     let state_0 = state[0];
     let mut new_state_0 = Num::ZERO;
     (0..statelen).for_each(|i| {
-        let tmp = if i == 0 { params.mds_matrices.m_0_0 } else { params.mds_matrices.w_hat_collection[k][i-1] };
+        let tmp = if i == 0 {
+            params.mds_matrices.m_0_0
+        } else {
+            params.mds_matrices.w_hat_collection[k][i - 1]
+        };
         new_state_0 += tmp * state[i]
     });
     state[0] = new_state_0;
-    
-    (0..statelen - 1).for_each(|i| state[i+1] += state_0 * params.mds_matrices.v_collection[k][i]);
+
+    (0..statelen - 1).for_each(|i| {
+        state[i + 1] += state_0 * params.mds_matrices.v_collection[k][i]
+    });
 }
 
+// Reference implementation: https://extgit.iaik.tugraz.at/krypto/hadeshash/-/blob/master/code/poseidonperm_x3_64_24_optimized.sage#L133
 fn perm<Fr: PrimeField>(state: &mut [Num<Fr>], params: &PoseidonParams<Fr>) {
     assert!(state.len() == params.t);
     let half_f = params.f >> 1;
@@ -92,17 +98,18 @@ fn perm<Fr: PrimeField>(state: &mut [Num<Fr>], params: &PoseidonParams<Fr>) {
 
     // Initial constants addition
     ark(state, &params.round_constants[round]);
-    
+
     // First full matrix multiplication
     mix_m_i(state, &params);
 
     for r in 0..params.p {
         // Round constants, nonlinear layer, matrix multiplication
-        state[0] = sigma(state[0]); // ok
+        state[0] = sigma(state[0]); 
+        
         // Moved constants addition
         if r < params.p - 1 {
-            round += 1; 
-            state[0] = state[0] + params.round_constants[round][0]; // ok
+            round += 1;
+            state[0] = state[0] + params.round_constants[round][0];
         }
         cheap_mix(state, params, params.p - r - 1);
     }
@@ -136,7 +143,7 @@ pub fn poseidon<Fr: PrimeField>(inputs: &[Num<Fr>], params: &PoseidonParams<Fr>)
             &mut vec[..]
         }
     };
-    
+
     (0..n_inputs).for_each(|i| state[i] = inputs[i]);
 
     perm(&mut state[..], params);
