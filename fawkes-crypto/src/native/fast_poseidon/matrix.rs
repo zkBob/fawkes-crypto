@@ -29,27 +29,6 @@ fn columns<T>(matrix: &Matrix<T>) -> usize {
     }
 }
 
-// This wastefully discards the actual inverse, if it exists, so in general callers should
-// just call `invert` if that result will be needed.
-pub(crate) fn is_invertible<Fr: PrimeField>(matrix: &Matrix<Num<Fr>>) -> bool {
-    is_square(matrix) && invert(matrix).is_some()
-}
-
-fn scalar_mul<Fr: PrimeField>(scalar: Num<Fr>, matrix: &Matrix<Num<Fr>>) -> Matrix<Num<Fr>> {
-    matrix
-        .iter()
-        .map(|row| {
-            row.iter()
-                .map(|val| {
-                    let mut prod = scalar;
-                    prod *= val;
-                    prod
-                })
-                .collect::<Vec<_>>()
-        })
-        .collect::<Vec<_>>()
-}
-
 fn scalar_vec_mul<Fr: PrimeField>(scalar: Num<Fr>, vec: &[Num<Fr>]) -> Vec<Num<Fr>> {
     vec.iter()
         .map(|val| {
@@ -86,17 +65,6 @@ fn vec_mul<Fr: PrimeField>(a: &[Num<Fr>], b: &[Num<Fr>]) -> Num<Fr> {
         acc += tmp;
         acc
     })
-}
-
-pub fn vec_add<Fr: PrimeField>(a: &[Num<Fr>], b: &[Num<Fr>]) -> Vec<Num<Fr>> {
-    a.iter()
-        .zip(b.iter())
-        .map(|(a, b)| {
-            let mut res = *a;
-            res += b;
-            res
-        })
-        .collect::<Vec<_>>()
 }
 
 pub fn vec_sub<Fr: PrimeField>(a: &[Num<Fr>], b: &[Num<Fr>]) -> Vec<Num<Fr>> {
@@ -173,25 +141,6 @@ pub fn make_identity<Fr: PrimeField>(size: usize) -> Matrix<Num<Fr>> {
         result[i][i] = Num::ONE;
     }
     result
-}
-
-pub fn kronecker_delta<Fr: PrimeField>(i: usize, j: usize) -> Num<Fr> {
-    if i == j {
-        Num::ONE
-    } else {
-        Num::ZERO
-    }
-}
-
-pub fn is_identity<Fr: PrimeField>(matrix: &Matrix<Num<Fr>>) -> bool {
-    for i in 0..rows(matrix) {
-        for j in 0..columns(matrix) {
-            if matrix[i][j] != kronecker_delta(i, j) {
-                return false;
-            }
-        }
-    }
-    true
 }
 
 pub fn is_square<T>(matrix: &Matrix<T>) -> bool {
@@ -400,23 +349,6 @@ mod tests {
     }
 
     #[test]
-    fn test_scalar_mul() {
-        let zero: Num<Fr> = Num::from(0);
-        let one = Num::from(1);
-        let two = Num::from(2);
-        let three = Num::from(3);
-        let four = Num::from(4);
-        let six = Num::from(6);
-
-        let m = vec![vec![zero, one], vec![two, three]];
-        let res = scalar_mul(two, &m);
-
-        let expected = vec![vec![zero, two], vec![four, six]];
-
-        assert_eq!(expected, res);
-    }
-
-    #[test]
     fn test_vec_mul() {
         let one: Num<Fr> = Num::from(1);
         let two = Num::from(2);
@@ -460,75 +392,6 @@ mod tests {
 
         let res = transpose(&m);
         assert_eq!(expected, res);
-    }
-
-    #[test]
-    fn test_inverse() {
-        let zero: Num<Fr> = Num::from(0);
-        let one = Num::from(1);
-        let two = Num::from(2);
-        let three = Num::from(3);
-        let four = Num::from(4);
-        let five = Num::from(5);
-        let six = Num::from(6);
-        let seven = Num::from(7);
-        let eight = Num::from(8);
-        let nine = Num::from(9);
-
-        let m = vec![
-            vec![one, two, three],
-            vec![four, three, six],
-            vec![five, eight, seven],
-        ];
-
-        let m1 = vec![
-            vec![one, two, three],
-            vec![four, five, six],
-            vec![seven, eight, nine],
-        ];
-
-        assert!(!is_invertible(&m1));
-        assert!(is_invertible(&m));
-
-        let m_inv = invert(&m).unwrap();
-
-        let computed_identity = mat_mul(&m, &m_inv).unwrap();
-        assert!(is_identity(&computed_identity));
-
-        // S
-        let some_vec = vec![six, five, four];
-
-        // M^-1(S)
-        let inverse_applied = super::apply_matrix(&m_inv, &some_vec);
-
-        // M(M^-1(S))
-        let m_applied_after_inverse = super::apply_matrix(&m, &inverse_applied);
-
-        // S = M(M^-1(S))
-        assert_eq!(
-            some_vec, m_applied_after_inverse,
-            "M(M^-1(V))) = V did not hold"
-        );
-
-        //panic!();
-        // B
-        let base_vec = vec![eight, two, five];
-
-        // S + M(B)
-        let add_after_apply = vec_add(&some_vec, &apply_matrix(&m, &base_vec));
-
-        // M(B + M^-1(S))
-        let apply_after_add = apply_matrix(&m, &vec_add(&base_vec, &inverse_applied));
-
-        // S + M(B) = M(B + M^-1(S))
-        assert_eq!(add_after_apply, apply_after_add, "breakin' the law");
-
-        let m = vec![vec![zero, one], vec![one, zero]];
-        let m_inv = invert(&m).unwrap();
-        let computed_identity = mat_mul(&m, &m_inv).unwrap();
-        assert!(is_identity(&computed_identity));
-        let computed_identity = mat_mul(&m_inv, &m).unwrap();
-        assert!(is_identity(&computed_identity));
     }
 
     #[test]
@@ -590,36 +453,5 @@ mod tests {
         let _res = upper_triangular(&m, &mut shadow);
 
         // Actually assert things.
-    }
-
-    #[test]
-    fn test_reduce_to_identity() {
-        //        let one = Fr::from(1);
-        let two: Num<Fr> = Num::from(2);
-        let three = Num::from(3);
-        let four = Num::from(4);
-        let five = Num::from(5);
-        let six = Num::from(6);
-        let seven = Num::from(7);
-        let eight = Num::from(8);
-        //        let nine = Fr::from(9);
-
-        let m = vec![
-            vec![two, three, four],
-            vec![four, five, six],
-            vec![seven, eight, eight],
-        ];
-
-        let mut shadow = make_identity(columns(&m));
-        let ut = upper_triangular(&m, &mut shadow);
-
-        let res = ut
-            .and_then(|x| reduce_to_identity(&x, &mut shadow))
-            .unwrap();
-
-        assert!(is_identity(&res));
-        let prod = mat_mul(&m, &shadow).unwrap();
-
-        assert!(is_identity(&prod));
     }
 }
