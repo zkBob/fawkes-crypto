@@ -29,7 +29,7 @@ fn mix<Fr: PrimeField>(state: &mut [Num<Fr>], params: &PoseidonParams<Fr>) {
 
     for i in 0..statelen {
         for j in 0..statelen {
-            new_state[i] += params.mds_matrices.m[i][j] * state[j];
+            new_state[i] += params.m[i][j] * state[j];
         }
     }
 
@@ -74,13 +74,12 @@ fn cheap_mix<Fr: PrimeField>(state: &mut [Num<Fr>], params: &PoseidonParams<Fr>,
     });
     state[0] = new_state_0;
 
-    (0..statelen - 1).for_each(|i| {
-        state[i + 1] += state_0 * params.mds_matrices.v_collection[k][i]
-    });
+    (0..statelen - 1)
+        .for_each(|i| state[i + 1] += state_0 * params.mds_matrices.v_collection[k][i]);
 }
 
 // Reference implementation: https://extgit.iaik.tugraz.at/krypto/hadeshash/-/blob/master/code/poseidonperm_x3_64_24_optimized.sage#L133
-fn perm<Fr: PrimeField>(state: &mut [Num<Fr>], params: &PoseidonParams<Fr>) {
+pub fn perm<Fr: PrimeField>(state: &mut [Num<Fr>], params: &PoseidonParams<Fr>) {
     assert!(state.len() == params.t);
     let half_f = params.f >> 1;
     let mut round = 0;
@@ -104,8 +103,8 @@ fn perm<Fr: PrimeField>(state: &mut [Num<Fr>], params: &PoseidonParams<Fr>) {
 
     for r in 0..params.p {
         // Round constants, nonlinear layer, matrix multiplication
-        state[0] = sigma(state[0]); 
-        
+        state[0] = sigma(state[0]);
+
         // Moved constants addition
         if r < params.p - 1 {
             round += 1;

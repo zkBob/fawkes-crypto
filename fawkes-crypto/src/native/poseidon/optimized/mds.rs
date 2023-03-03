@@ -1,8 +1,6 @@
 use ff_uint::{Num, PrimeField};
 
-use crate::native::fast_poseidon::matrix::transpose;
-
-use super::matrix::{invert, left_apply_matrix, make_identity, mat_mul, minor, Matrix};
+use super::matrix::{invert, left_apply_matrix, make_identity, mat_mul, minor, transpose, Matrix};
 
 #[cfg(feature = "serde_support")]
 use crate::serde::{Deserialize, Serialize};
@@ -14,8 +12,6 @@ use crate::serde::{Deserialize, Serialize};
     serde(bound(serialize = "", deserialize = ""))
 )]
 pub struct MdsMatrices<Fr: PrimeField> {
-    pub m: Matrix<Num<Fr>>,
-    pub m_transpose: Matrix<Num<Fr>>,
     pub m_i: Matrix<Num<Fr>>,
     pub v_collection: Vec<Vec<Num<Fr>>>,
     pub w_hat_collection: Vec<Vec<Num<Fr>>>,
@@ -24,11 +20,11 @@ pub struct MdsMatrices<Fr: PrimeField> {
 
 // Reference implementation: https://extgit.iaik.tugraz.at/krypto/hadeshash/-/blob/master/code/poseidonperm_x3_64_24_optimized.sage#L61
 pub fn calc_equivalent_matrices<Fr: PrimeField>(
-    m: Matrix<Num<Fr>>,
+    m: &Matrix<Num<Fr>>,
     p: usize,
     t: usize,
 ) -> MdsMatrices<Fr> {
-    let m_transpose = transpose(&m);
+    let m_transpose = transpose(m);
     let mut w_hat_collection = vec![];
     let mut v_collection = vec![];
 
@@ -69,8 +65,6 @@ pub fn calc_equivalent_matrices<Fr: PrimeField>(
     }
 
     MdsMatrices {
-        m,
-        m_transpose: m_transpose.clone(),
         m_i,
         v_collection,
         w_hat_collection,
