@@ -22,13 +22,15 @@ use crate::native::poseidon::unoptimized::params::PoseidonParams as OriginalPose
     serde(try_from = "OriginalPoseidonParams<Fr>")
 )]
 pub struct PoseidonParams<Fr: PrimeField> {
-    pub m: Vec<Vec<Num<Fr>>>,
     pub c: Vec<Vec<Num<Fr>>>,
+    pub m: Vec<Vec<Num<Fr>>>,
+    pub t: usize,
     pub f: usize,
     pub p: usize,
-    pub t: usize,
 
+    #[cfg_attr(feature = "serde_support", serde(skip_serializing))]
     pub mds_matrices: MdsMatrices<Fr>,
+    #[cfg_attr(feature = "serde_support", serde(skip_serializing))]
     pub round_constants: Vec<Vec<Num<Fr>>>,
 }
 
@@ -49,13 +51,13 @@ impl<Fr: PrimeField> PoseidonParams<Fr> {
         let round_constants = calc_equivalent_constants(&params.c, m, f, p, t);
 
         PoseidonParams {
-            m: params.m,
             c: params.c,
-            mds_matrices,
-            round_constants,
+            m: params.m,
+            t,
             f,
             p,
-            t,
+            mds_matrices,
+            round_constants,
         }
     }
 }
