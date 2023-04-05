@@ -1,7 +1,7 @@
 use crate::{
     circuit::{
         cs::{RCS, WitnessCS, CS},
-        lc::{Index}
+        lc::{Index}, gates::{GateSource, Gate, GateIterator}
     },
     core::signal::Signal,
     ff_uint::{Num, PrimeField},
@@ -92,9 +92,9 @@ impl<E: Engine, C:CS<Fr=E::Fr>> bellman::Circuit<E::BE> for BellmanCS<E, C> {
         for (i,g) in cs.get_gate_iterator().enumerate() {
             bellman_cs.enforce(
                 || format!("constraint {}", i),
-                |_| convert_lc::<E>(&g.0, &variables_input, &variables_aux),
-                |_| convert_lc::<E>(&g.1, &variables_input, &variables_aux),
-                |_| convert_lc::<E>(&g.2, &variables_input, &variables_aux),
+                |_| convert_lc::<E>(&g.as_ref().0, &variables_input, &variables_aux),
+                |_| convert_lc::<E>(&g.as_ref().1, &variables_input, &variables_aux),
+                |_| convert_lc::<E>(&g.as_ref().2, &variables_input, &variables_aux),
             );
         }
         Ok(())
@@ -143,8 +143,12 @@ impl<E: Engine> Parameters<E> {
         verifier::VK::from_bellman(&self.0.vk)
     }
 
-    pub fn get_witness_rcs(&self)->RCS<WitnessCS<E::Fr>> {
-        WitnessCS::rc_new(self.1 as usize, &self.2, &self.3)
+    pub fn get_witness_rcs(&self) -> RCS<WitnessCS<E::Fr>> {
+        WitnessCS::rc_new(self.1 as usize, GateSource::Compressed(&self.2), &self.3)
+    }
+
+    pub fn get_witness_rcs_precomputed<'a>(&'a self, data: &'a PrecomputedData<E::Fr>) -> RCS<WitnessCS<E::Fr>> {
+        WitnessCS::rc_new(self.1 as usize, GateSource::Parsed(&data.gates), &self.3)
     }
 
     pub fn write<W:std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
@@ -174,4 +178,13 @@ impl<E: Engine> Parameters<E> {
         Ok(Self(e0, e1, e2, e3))
     }
 
+    pub fn precompute(&self) -> PrecomputedData<E::Fr> {
+        PrecomputedData {
+            gates: GateIterator::new(&GateSource::Compressed(&self.2)).map(|g| g.gate()).collect()
+        }
+    }
+}
+
+pub struct PrecomputedData<Fr: PrimeField> {
+    gates: Vec<Gate<Fr>>
 }

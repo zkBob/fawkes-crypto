@@ -67,6 +67,29 @@ pub fn prove<'a, E: Engine, Pub: Signal<WitnessCS<'a, E::Fr>>, Sec: Signal<Witne
     circuit: C,
 ) -> (Vec<Num<E::Fr>>, Proof<E>) {
     let ref rcs = params.get_witness_rcs();
+    prove_internal(params, input_pub, input_sec, circuit, rcs)
+}
+
+#[cfg(feature = "rand_support")]
+pub fn prove_precomputed<'a, E: Engine, Pub: Signal<WitnessCS<'a, E::Fr>>, Sec: Signal<WitnessCS<'a, E::Fr>>, C: Fn(Pub, Sec)>(
+    params: &'a Parameters<E>,
+    input_pub: &Pub::Value,
+    input_sec: &Sec::Value,
+    circuit: C,
+    precomputed: &'a PrecomputedData<E::Fr>,
+) -> (Vec<Num<E::Fr>>, Proof<E>) {
+    let ref rcs = params.get_witness_rcs_precomputed(precomputed);
+    prove_internal(params, input_pub, input_sec, circuit, rcs)
+}
+
+#[cfg(feature = "rand_support")]
+fn prove_internal<'a, E: Engine, Pub: Signal<WitnessCS<'a, E::Fr>>, Sec: Signal<WitnessCS<'a, E::Fr>>, C: Fn(Pub, Sec)>(
+    params: &'a Parameters<E>,
+    input_pub: &Pub::Value,
+    input_sec: &Sec::Value,
+    circuit: C,
+    rcs: &RCS<WitnessCS<'a, E::Fr>>
+) -> (Vec<Num<E::Fr>>, Proof<E>) {
     let signal_pub = Pub::alloc(rcs, Some(input_pub));
     signal_pub.inputize();
     let signal_sec = Sec::alloc(rcs, Some(input_sec));
