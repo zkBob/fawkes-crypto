@@ -1,5 +1,5 @@
 
-use fawkes_crypto_zkbob::{
+use fawkes_crypto::{
     circuit::{bitify::c_into_bits_le_strict, cs::DebugCS, ecc::*, num::CNum, cs::CS},
     native::ecc::*,
     ff_uint::Num,

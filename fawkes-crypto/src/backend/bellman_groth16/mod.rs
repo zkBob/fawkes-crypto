@@ -1,7 +1,7 @@
 use crate::{
     circuit::{
         cs::{RCS, WitnessCS, CS},
-        lc::Index,
+        lc::{Index}
     },
     core::signal::Signal,
     ff_uint::{Num, PrimeField},
@@ -20,8 +20,6 @@ use bellman::pairing::CurveAffine;
 use std::marker::PhantomData;
 use engines::Engine;
 
-use self::precompute::PrecomputedData;
-
 pub mod engines;
 #[cfg(feature = "rand_support")]
 pub mod osrng;
@@ -30,7 +28,7 @@ pub mod prover;
 pub mod setup;
 pub mod verifier;
 pub mod group;
-pub mod precompute;
+
 
 
 #[repr(transparent)]
@@ -145,13 +143,8 @@ impl<E: Engine> Parameters<E> {
         verifier::VK::from_bellman(&self.0.vk)
     }
 
-    pub fn get_witness_rcs(&self) -> RCS<WitnessCS<E::Fr>> {
-        let gates = PrecomputedData::parse_gates(&self);
-        WitnessCS::rc_new(self.1 as usize, gates, &self.3)
-    }
-
-    pub fn get_witness_rcs_precomputed(&self, precomputed: &PrecomputedData<E>) -> RCS<WitnessCS<E::Fr>> {
-        WitnessCS::rc_new(self.1 as usize, precomputed.gates.clone(), &self.3)
+    pub fn get_witness_rcs(&self)->RCS<WitnessCS<E::Fr>> {
+        WitnessCS::rc_new(self.1 as usize, &self.2, &self.3)
     }
 
     pub fn write<W:std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
@@ -181,7 +174,4 @@ impl<E: Engine> Parameters<E> {
         Ok(Self(e0, e1, e2, e3))
     }
 
-    pub fn precompute(&self) -> PrecomputedData<E> {
-        PrecomputedData::prepare(&self)
-    }
 }

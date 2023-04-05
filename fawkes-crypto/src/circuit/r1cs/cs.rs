@@ -9,6 +9,7 @@ use crate::{
 
 use std::{cell::RefCell, marker::PhantomData, rc::Rc};
 use bit_vec::BitVec;
+use byteorder::{ByteOrder, LittleEndian};
 
 pub type RCS<C> = Rc<RefCell<C>>;
 
@@ -27,13 +28,13 @@ pub struct Gate<Fr:PrimeField>(
 pub trait CS: Clone {
     type Fr: PrimeField;
     type LC: AbstractLC<Self::Fr>;
-    type GateIterator<'g>: Iterator<Item=&'g Gate<Self::Fr>> where Self: 'g;
+    type GateIterator: Iterator<Item=Gate<Self::Fr>>;
 
     fn num_gates(&self) -> usize;
     fn num_input(&self) -> usize;
     fn num_aux(&self) -> usize;
     fn get_value(&self, index:Index) -> Option<Num<Self::Fr>>;
-    fn get_gate_iterator<'g>(&'g self) -> Self::GateIterator<'g>;
+    fn get_gate_iterator(&self) -> Self::GateIterator;
 
     // a*b === c
     fn enforce(a: &CNum<Self>, b: &CNum<Self>, c: &CNum<Self>);
@@ -99,13 +100,13 @@ pub struct WitnessCS<'a, Fr: PrimeField> {
     pub values_input: Vec<Num<Fr>>,
     pub values_aux: Vec<Num<Fr>>,
     pub num_gates: usize,
-    pub gates_data: Rc<Vec<Gate<Fr>>>,
+    pub gates_data: &'a[u8],
     pub const_tracker: &'a BitVec,
     pub const_tracker_index: usize
 }
 
 impl<'a, Fr: PrimeField> WitnessCS<'a, Fr> {
-    pub fn new(num_gates:usize, gates_data: Rc<Vec<Gate<Fr>>>, const_tracker: &'a BitVec) -> Self {
+    pub fn new(num_gates:usize, gates_data: &'a[u8], const_tracker: &'a BitVec) -> Self {
         Self {
             values_input: vec![Num::ONE],
             values_aux: vec![],
@@ -116,7 +117,7 @@ impl<'a, Fr: PrimeField> WitnessCS<'a, Fr> {
         }
     }
 
-    pub fn rc_new(num_gates:usize, gates_data: Rc<Vec<Gate<Fr>>>, const_tracker: &'a BitVec) -> RCS<Self> {
+    pub fn rc_new(num_gates:usize, gates_data: &'a[u8], const_tracker: &'a BitVec) -> RCS<Self> {
         Rc::new(RefCell::new(Self::new(num_gates, gates_data, const_tracker)))
     }
 }
@@ -125,7 +126,7 @@ impl<'a, Fr: PrimeField> WitnessCS<'a, Fr> {
 impl<Fr: PrimeField>  CS for DebugCS<Fr> {
     type Fr = Fr;
     type LC = LC<Fr>;
-    type GateIterator<'g> = core::iter::Empty<&'g Gate<Self::Fr>> where Self: 'g;
+    type GateIterator = core::iter::Empty<Gate<Self::Fr>>;
 
     fn num_gates(&self) -> usize {
         self.num_gates
@@ -142,7 +143,7 @@ impl<Fr: PrimeField>  CS for DebugCS<Fr> {
         None
     }
 
-    fn get_gate_iterator<'g>(&'g self) -> Self::GateIterator<'g> {
+    fn get_gate_iterator(&self) -> Self::GateIterator {
         std::unimplemented!();
     }
 
@@ -179,10 +180,52 @@ impl<Fr: PrimeField>  CS for DebugCS<Fr> {
 
 }
 
+
+pub struct GateStreamedIterator<Fr:PrimeField, R:std::io::Read>(R,PhantomData<Fr>);
+
+fn read_u32<R:std::io::Read>(r: &mut R) -> std::io::Result<u32> {
+    let mut b = [0; 4];
+    r.read_exact(&mut b)?;
+    Ok(LittleEndian::read_u32(&b))
+}
+
+
+fn read_gate_part<Fr:PrimeField, R:std::io::Read>(r: &mut R) -> std::io::Result<Vec<(Num<Fr>, Index)>> {
+    let sz = read_u32(r)? as usize;
+
+    let item_size = std::mem::size_of::<Fr>() + std::mem::size_of::<u8>() + std::mem::size_of::<u32>();
+    let mut buf = vec![0; sz*item_size];
+    r.read_exact(&mut buf)?;
+    let mut buf_ref = &buf[..];
+    let mut gate_part = Vec::with_capacity(sz);
+    for _ in 0..sz {
+        let a = Num::<Fr>::deserialize(&mut buf_ref)?;
+        let b1 = u8::deserialize(&mut buf_ref)?;
+        let b2 = u32::deserialize(&mut buf_ref)?;
+        let b = match b1 {
+            0 => Index::Input(b2),
+            1 => Index::Aux(b2),
+            _ => return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "enum elements overflow"))
+        };
+        gate_part.push((a,b));
+    }
+    Ok(gate_part)
+}
+
+impl<Fr:PrimeField, R:std::io::Read> Iterator for GateStreamedIterator<Fr, R> {
+    type Item = Gate<Fr>;
+    fn next(&mut self) -> Option<Self::Item> {
+        let a = read_gate_part(&mut self.0).ok()?;
+        let b = read_gate_part(&mut self.0).ok()?;
+        let c = read_gate_part(&mut self.0).ok()?;
+        Some(Gate(a,b,c))
+    }
+}
+
 impl<'a, Fr: PrimeField> CS for WitnessCS<'a, Fr> {
     type Fr = Fr;
     type LC = ZeroLC;
-    type GateIterator<'g> = core::slice::Iter<'g, Gate<Self::Fr>> where Self: 'g;
+    type GateIterator = GateStreamedIterator<Fr, brotli::Decompressor<&'a [u8]>>;
 
     fn num_gates(&self) -> usize {
         self.num_gates
@@ -202,8 +245,8 @@ impl<'a, Fr: PrimeField> CS for WitnessCS<'a, Fr> {
         }
     }
 
-    fn get_gate_iterator<'g>(&'g self) -> Self::GateIterator<'g> {
-        self.gates_data.iter()
+    fn get_gate_iterator(&self) -> Self::GateIterator {
+        GateStreamedIterator(brotli::Decompressor::new(self.gates_data, 4096), PhantomData)
     }
 
     fn enforce(_: &CNum<Self>, _: &CNum<Self>, _: &CNum<Self>) {
@@ -236,7 +279,7 @@ impl<'a, Fr: PrimeField> CS for WitnessCS<'a, Fr> {
 impl<Fr: PrimeField> CS for BuildCS<Fr> {
     type Fr = Fr;
     type LC = LC<Fr>;
-    type GateIterator<'g> = core::slice::Iter<'g, Gate<Self::Fr>> where Self: 'g;
+    type GateIterator = std::vec::IntoIter<Gate<Self::Fr>>;
 
     fn num_gates(&self) -> usize {
         self.gates.len()
@@ -253,8 +296,8 @@ impl<Fr: PrimeField> CS for BuildCS<Fr> {
         None
     }
 
-    fn get_gate_iterator<'g>(&'g self) -> Self::GateIterator<'g> {
-        self.gates.iter()
+    fn get_gate_iterator(&self) -> Self::GateIterator {
+        self.gates.clone().into_iter()
     }
 
     // a*b === c
