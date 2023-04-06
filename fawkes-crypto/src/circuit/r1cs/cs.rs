@@ -227,7 +227,7 @@ impl<'a, Fr: PrimeField + 'a> CS for WitnessCS<'a, Fr> {
 impl<Fr: PrimeField> CS for BuildCS<Fr> {
     type Fr = Fr;
     type LC = LC<Fr>;
-    type GateIterator<'b> = gates::GateIterator<'b, Fr> where Self: 'b;
+    type GateIterator<'a> = gates::GateIterator<'a, Fr> where Self: 'a;
 
     fn num_gates(&self) -> usize {
         self.gates.len()
