@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, ops::Deref};
 
 #[cfg(feature="borsh_support")]
 use borsh::{BorshSerialize, BorshDeserialize};
@@ -17,20 +17,14 @@ pub struct Gate<Fr: PrimeField>(
     pub Vec<(Num<Fr>, Index)>,
 );
 
-impl<Fr: PrimeField> Gate<Fr> {
-    pub fn wrap<'a>(&'a self) -> GateWrapper<'a, Fr> {
-        GateWrapper::Ref(self)
-    }
-}
-
 #[derive(Clone, Debug)]
 pub enum GateSource<'a, Fr: PrimeField> {
     Compressed(&'a [u8]),
-    Parsed(&'a Vec<Gate<Fr>>)
+    Precomputed(&'a Vec<Gate<Fr>>)
 }
 
 pub enum GateIterator<'a, Fr: PrimeField> {
-    Streamed(GateStreamedIterator<Fr, brotli::Decompressor<&'a [u8]>>),
+    Streamed(Box<GateStreamedIterator<Fr, brotli::Decompressor<&'a [u8]>>>),
     Precomputed(std::slice::Iter<'a, Gate<Fr>>)
 }
 
@@ -38,9 +32,9 @@ impl<'a, Fr: PrimeField> GateIterator<'a, Fr> {
     pub fn new(source: &GateSource<'a, Fr>) -> Self {
         match source {
             GateSource::Compressed(bytes) => {
-                Self::Streamed(GateStreamedIterator(brotli::Decompressor::new(bytes, 4096), PhantomData))
+                Self::Streamed(Box::new(GateStreamedIterator(brotli::Decompressor::new(bytes, 4096), PhantomData)))
             },
-            GateSource::Parsed(vec) => {
+            GateSource::Precomputed(vec) => {
                 Self::Precomputed(vec.iter())
             }
         }
@@ -118,10 +112,12 @@ impl<'a, Fr: PrimeField> GateWrapper<'a, Fr> {
     }
 }
 
-impl<'a, Fr: PrimeField> AsRef<Gate<Fr>> for GateWrapper<'a, Fr> {
-    fn as_ref(&self) -> &Gate<Fr> {
+impl<'a, Fr: PrimeField> Deref for GateWrapper<'a, Fr> {
+    type Target = Gate<Fr>;
+
+    fn deref(&self) -> &Self::Target {
         match self {
-            Self::Value(val) => &val,
+            Self::Value(val) => val,
             Self::Ref(reference) => reference
         }
     }

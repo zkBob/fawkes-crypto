@@ -92,9 +92,9 @@ impl<E: Engine, C:CS<Fr=E::Fr>> bellman::Circuit<E::BE> for BellmanCS<E, C> {
         for (i,g) in cs.get_gate_iterator().enumerate() {
             bellman_cs.enforce(
                 || format!("constraint {}", i),
-                |_| convert_lc::<E>(&g.as_ref().0, &variables_input, &variables_aux),
-                |_| convert_lc::<E>(&g.as_ref().1, &variables_input, &variables_aux),
-                |_| convert_lc::<E>(&g.as_ref().2, &variables_input, &variables_aux),
+                |_| convert_lc::<E>(&g.0, &variables_input, &variables_aux),
+                |_| convert_lc::<E>(&g.1, &variables_input, &variables_aux),
+                |_| convert_lc::<E>(&g.2, &variables_input, &variables_aux),
             );
         }
         Ok(())
@@ -148,7 +148,7 @@ impl<E: Engine> Parameters<E> {
     }
 
     pub fn get_witness_rcs_precomputed<'a>(&'a self, data: &'a PrecomputedData<E::Fr>) -> RCS<WitnessCS<E::Fr>> {
-        WitnessCS::rc_new(self.1 as usize, GateSource::Parsed(&data.gates), &self.3)
+        WitnessCS::rc_new(self.1 as usize, GateSource::Precomputed(&data.gates), &self.3)
     }
 
     pub fn write<W:std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {

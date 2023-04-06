@@ -66,7 +66,7 @@ pub fn prove<'a, E: Engine, Pub: Signal<WitnessCS<'a, E::Fr>>, Sec: Signal<Witne
     input_sec: &Sec::Value,
     circuit: C,
 ) -> (Vec<Num<E::Fr>>, Proof<E>) {
-    let ref rcs = params.get_witness_rcs();
+    let rcs = &params.get_witness_rcs();
     prove_internal(params, input_pub, input_sec, circuit, rcs)
 }
 
@@ -78,7 +78,7 @@ pub fn prove_precomputed<'a, E: Engine, Pub: Signal<WitnessCS<'a, E::Fr>>, Sec: 
     circuit: C,
     precomputed: &'a PrecomputedData<E::Fr>,
 ) -> (Vec<Num<E::Fr>>, Proof<E>) {
-    let ref rcs = params.get_witness_rcs_precomputed(precomputed);
+    let rcs = &params.get_witness_rcs_precomputed(precomputed);
     prove_internal(params, input_pub, input_sec, circuit, rcs)
 }
 

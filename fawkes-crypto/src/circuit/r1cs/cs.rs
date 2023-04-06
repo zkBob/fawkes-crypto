@@ -24,7 +24,7 @@ pub trait CS: Clone {
     fn num_input(&self) -> usize;
     fn num_aux(&self) -> usize;
     fn get_value(&self, index:Index) -> Option<Num<Self::Fr>>;
-    fn get_gate_iterator<'a>(&'a self) -> Self::GateIterator<'a>;
+    fn get_gate_iterator(&self) -> Self::GateIterator<'_>;
 
     // a*b === c
     fn enforce(a: &CNum<Self>, b: &CNum<Self>, c: &CNum<Self>);
@@ -133,7 +133,7 @@ impl<Fr: PrimeField>  CS for DebugCS<Fr> {
         None
     }
 
-    fn get_gate_iterator<'a>(&'a self) -> Self::GateIterator<'a> {
+    fn get_gate_iterator(&self) -> Self::GateIterator<'_> {
         std::unimplemented!();
     }
 
@@ -193,7 +193,7 @@ impl<'a, Fr: PrimeField + 'a> CS for WitnessCS<'a, Fr> {
         }
     }
 
-    fn get_gate_iterator(&self) -> Self::GateIterator<'a> {
+    fn get_gate_iterator(&self) -> Self::GateIterator<'_> {
         gates::GateIterator::new(&self.gates)   
     }
 
@@ -227,7 +227,7 @@ impl<'a, Fr: PrimeField + 'a> CS for WitnessCS<'a, Fr> {
 impl<Fr: PrimeField> CS for BuildCS<Fr> {
     type Fr = Fr;
     type LC = LC<Fr>;
-    type GateIterator<'a> = std::vec::IntoIter<GateWrapper<'a, Self::Fr>> where Self: 'a;
+    type GateIterator<'b> = gates::GateIterator<'b, Fr> where Self: 'b;
 
     fn num_gates(&self) -> usize {
         self.gates.len()
@@ -244,8 +244,8 @@ impl<Fr: PrimeField> CS for BuildCS<Fr> {
         None
     }
 
-    fn get_gate_iterator<'a>(&'a self) -> Self::GateIterator<'a> {
-        self.gates.iter().map(|g| g.wrap()).collect::<Vec<_>>().into_iter()
+    fn get_gate_iterator(&self) -> Self::GateIterator<'_> {
+        gates::GateIterator::new(&GateSource::Precomputed(&self.gates))
     }
 
     // a*b === c
