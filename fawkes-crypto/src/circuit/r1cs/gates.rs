@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, ops::Deref};
+use std::{marker::PhantomData, ops::Deref, io::Read};
 
 #[cfg(feature="borsh_support")]
 use borsh::{BorshSerialize, BorshDeserialize};
@@ -41,6 +41,30 @@ impl<'a, Fr: PrimeField> GateIterator<'a, Fr> {
     }
 }
 
+pub enum GateWrapper<'a, Fr: PrimeField> {
+    Value(Gate<Fr>),
+    Ref(&'a Gate<Fr>)
+}
+
+impl<'a, Fr: PrimeField> GateWrapper<'a, Fr> {
+    pub fn gate(self) -> Gate<Fr> {
+        match self {
+            Self::Value(v) => v,
+            Self::Ref(r) => r.clone()
+        }
+    }
+}
+
+impl<'a, Fr: PrimeField> Deref for GateWrapper<'a, Fr> {
+    type Target = Gate<Fr>;
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Value(val) => val,
+            Self::Ref(reference) => reference
+        }
+    }
+}
 
 impl<'a, Fr: PrimeField> Iterator for GateIterator<'a, Fr> {
     type Item = GateWrapper<'a, Fr>;
@@ -56,6 +80,25 @@ impl<'a, Fr: PrimeField> Iterator for GateIterator<'a, Fr> {
     }
 }
 
+pub fn evaluate_gates_memory_size<Fr: PrimeField>(
+    num_gates: usize,
+    bytes: &[u8],
+) -> std::io::Result<usize> {
+    let r = &mut brotli::Decompressor::new(bytes, 4096);
+    let mut memory_size = 0;
+    let item_size = std::mem::size_of::<Fr>() + std::mem::size_of::<u8>() + std::mem::size_of::<u32>();
+    let gate_size = std::mem::size_of::<Fr>() + std::mem::size_of::<Index>();
+    for _ in 0..num_gates {
+        for _ in 0..3 {
+            let count = read_u32(r)? as usize;
+            memory_size += count * gate_size;
+            
+            let mut buf = vec![0; count * item_size];
+            r.read_exact(&mut buf)?;
+        }
+    }
+    Ok(memory_size)
+}
 
 pub struct GateStreamedIterator<Fr:PrimeField, R:std::io::Read>(R, PhantomData<Fr>);
 
@@ -95,30 +138,5 @@ impl<Fr:PrimeField, R:std::io::Read> Iterator for GateStreamedIterator<Fr, R> {
         let b = read_gate_part(&mut self.0).ok()?;
         let c = read_gate_part(&mut self.0).ok()?;
         Some(Gate(a,b,c))
-    }
-}
-
-pub enum GateWrapper<'a, Fr: PrimeField> {
-    Value(Gate<Fr>),
-    Ref(&'a Gate<Fr>)
-}
-
-impl<'a, Fr: PrimeField> GateWrapper<'a, Fr> {
-    pub fn gate(self) -> Gate<Fr> {
-        match self {
-            Self::Value(v) => v,
-            Self::Ref(r) => r.clone()
-        }
-    }
-}
-
-impl<'a, Fr: PrimeField> Deref for GateWrapper<'a, Fr> {
-    type Target = Gate<Fr>;
-
-    fn deref(&self) -> &Self::Target {
-        match self {
-            Self::Value(val) => val,
-            Self::Ref(reference) => reference
-        }
     }
 }

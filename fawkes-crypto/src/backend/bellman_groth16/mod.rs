@@ -1,7 +1,7 @@
 use crate::{
     circuit::{
         cs::{RCS, WitnessCS, CS},
-        lc::{Index}, gates::{GateSource, Gate, GateIterator}
+        lc::{Index}, gates::{GateSource, Gate, GateIterator, evaluate_gates_memory_size}
     },
     core::signal::Signal,
     ff_uint::{Num, PrimeField},
@@ -182,6 +182,10 @@ impl<E: Engine> Parameters<E> {
         PrecomputedData {
             gates: GateIterator::new(&GateSource::Compressed(&self.2)).map(|g| g.gate()).collect()
         }
+    }
+
+    pub fn precompute_memory_size(&self) -> std::io::Result<usize> {
+        evaluate_gates_memory_size::<E::Fr>(self.1 as usize, &self.2)
     }
 }
 
