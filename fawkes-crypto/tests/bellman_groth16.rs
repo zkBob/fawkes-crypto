@@ -1,5 +1,5 @@
 #[cfg(feature = "heavy_tests")]
-use fawkes_crypto::{
+use fawkes_crypto_zkbob::{
     backend::bellman_groth16::{
         *,
         engines::Bn256,
