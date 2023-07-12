@@ -32,7 +32,7 @@ pub use static_assertions;
 #[macro_use]
 mod uint;
 #[macro_use]
-mod ff;
+pub mod ff;
 mod num;
 mod traits;
 
