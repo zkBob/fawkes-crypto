@@ -76,7 +76,7 @@ macro_rules! uint_full_mul_reg {
                             if $check(me[j], carry) {
                                 let a = me[j];
 
-                                let (hi, low) = Self::split_u128(a as u128 * b as u128);
+                                let (hi, low) = Self::split_u128($crate::ff::arith_impl::mul_u64(a, b));
 
                                 let overflow = {
                                     let existing_low = &mut ret[i + j];
