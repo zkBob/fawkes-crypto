@@ -1,4 +1,4 @@
-use fawkes_crypto::{
+use fawkes_crypto_zkbob::{
     native::ecc::*,
     ff_uint::Num,
     engines::bn256::{Fr, JubJubBN256},
