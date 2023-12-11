@@ -1,7 +1,5 @@
 // Assuming JubJub curves with cofactor=8 only
 
-use std::cmp::min;
-
 use ff_uint::{Uint, NumRepr};
 
 use crate::ff_uint::{BitIterBE, Num, PrimeField};
@@ -75,7 +73,9 @@ impl<Fr: PrimeField> EdwardsPoint<Fr> {
     pub fn compress<J: JubJubParams<Fr = Fr>>(&self, _: &J) -> [u8; 32] {
         let mut r: [u8; 32] = [0; 32];
         let x_bytes = self.x.to_uint().0.to_little_endian();
-        let len = min(x_bytes.len(), r.len());
+        assert!(x_bytes.len() <= r.len(), "num size is too big");
+        
+        let len = x_bytes.len();
         r[..len].copy_from_slice(&x_bytes[..len]);
         if self.y.to_uint() > (Num::<J::Fr>::MODULUS >> 1) {
             r[31] |= 0x80;
