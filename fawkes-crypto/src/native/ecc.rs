@@ -1,5 +1,9 @@
 // Assuming JubJub curves with cofactor=8 only
 
+use std::cmp::min;
+
+use ff_uint::{Uint, NumRepr};
+
 use crate::ff_uint::{BitIterBE, Num, PrimeField};
 
 #[cfg(feature = "serde_support")]
@@ -66,6 +70,50 @@ impl<Fr: PrimeField> EdwardsPoint<Fr> {
                     Self { x, y }
                 }
             })
+    }
+
+    pub fn compress<J: JubJubParams<Fr = Fr>>(&self, _: &J) -> [u8; 32] {
+        let mut r: [u8; 32] = [0; 32];
+        let x_bytes = self.x.to_uint().0.to_little_endian();
+        let len = min(x_bytes.len(), r.len());
+        r[..len].copy_from_slice(&x_bytes[..len]);
+        if self.y.to_uint() > (Num::<J::Fr>::MODULUS >> 1) {
+            r[31] |= 0x80;
+        }
+        r
+    }
+
+    pub fn decompress_unchecked<J: JubJubParams<Fr = Fr>>(bytes: [u8; 32], params: &J) -> Option<Self> {
+        let mut sign: bool = false;
+        let mut x_bytes = bytes;
+        if x_bytes[31] & 0x80 != 0x00 {
+            sign = true;
+            x_bytes[31] &= 0x7F;
+        }
+        let x: Num<Fr> = Num::from_uint_reduced(NumRepr(Uint::from_little_endian(&x_bytes[..])));
+        if x.to_uint() >= Num::<J::Fr>::MODULUS {
+            return None;
+        }
+
+        let x2 = x.square();
+        let y = ((x2 + Num::ONE) / (Num::ONE - params.edwards_d() * x2)).sqrt();
+        match y {
+            Some(mut y) => {
+                if sign && (y.to_uint() <= (Num::<J::Fr>::MODULUS >> 1)) || (!sign && (y.to_uint() > (Num::<J::Fr>::MODULUS >> 1))) {
+                    y = -y;
+                }
+                Some(Self{x, y})
+            },
+            None => None
+        }
+    }
+
+    pub fn is_in_prime_subgroup<J: JubJubParams<Fr = Fr>>(&self, params: &J) -> bool {
+        let EdwardsPoint { x: lx, y: ly } = self
+            .into_extended()
+            .mul(Num::<J::Fs>::MODULUS, params)
+            .into_affine();
+        lx.is_zero() && ly == Num::ONE
     }
 
     pub fn subgroup_decompress<J: JubJubParams<Fr = Fr>>(x: Num<Fr>, params: &J) -> Option<Self> {
