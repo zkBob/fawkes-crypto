@@ -1,6 +1,6 @@
 [package]
 name = "fawkes-crypto-zkbob"
-version = "4.6.0"
+version = "4.7.0"
 authors = ["Igor Gulamov <igor.gulamov@gmail.com>"]
 description = "zk-SNARK circuit building framework"
 readme = "README.md"
@@ -33,10 +33,10 @@ version = "0.0.1"
 package = "blake2-rfc_bellman_edition"
 
 [dependencies.bellman]
-version = "0.3.4"
-package = "fawkes-crypto-bellman_ce"
+version = "0.4.0"
+package = "fawkes-crypto-zkbob-bellman_ce"
 git = "https://github.com/zkBob/phase2-bn254"
-branch = "multicore-wasm"
+branch = "master"
 optional = true
 
 [features]
